@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-List<Car> cars = new List<Car>();
+List<Car> cars = new List<Car>() {new Car(Guid.NewGuid().ToString(),"vaz","granta","sedan","benzin",2,"jac",7) };
 
 app.Run(async (context) =>
 {
@@ -13,7 +13,7 @@ app.Run(async (context) =>
     var response = context.Response;
     var request = context.Request;
     var path = request.Path;
-    string expressionForGuid = @"^/api/users/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$";
+    string expressionForGuid = @"^/api/cars/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$";
 
     if (path == "/api/cars" && request.Method == "GET")
     {
@@ -40,6 +40,7 @@ async Task GetAllCar(HttpResponse response)
 {   
     await response.WriteAsJsonAsync(cars);
 }
+
 async Task DeleteCar(string? id, HttpResponse response)
 {
     Car? car = cars.FirstOrDefault((u) => u.Id == id);
@@ -64,9 +65,11 @@ async Task CreateCar(HttpResponse response, HttpRequest request)
         var car = await request.ReadFromJsonAsync<Car>(jsonoptions);
         if (car != null)
         {
-            cars.Add(new(Guid.NewGuid().ToString(), car.marka, car.model, car.bodytype, car.enginetype,
-                car.engineDisplacement, car.transmissionType, car.averageConsumption));
-            await response.WriteAsJsonAsync(car);
+            var c = new Car(Guid.NewGuid().ToString(), car.marka, car.model, car.bodytype, car.enginetype,
+                car.engineDisplacement, car.transmissionType, car.averageConsumption);
+            cars.Add(c);
+            Console.WriteLine(c.Id);
+            await response.WriteAsJsonAsync(c);
         }
         else
         {
@@ -182,4 +185,3 @@ public class CarConverter : JsonConverter<Car>
         writer.WriteEndObject();
     }
 }
-
