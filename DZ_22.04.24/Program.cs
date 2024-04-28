@@ -1,33 +1,32 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
+List<Car> cars = new List<Car>();
+
 app.Run(async (context) =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
-
-
     var response = context.Response;
     var request = context.Request;
-    if (request.Path == "/postcar")
-    {
-        var message = "Некорректные данные";
+    var path = request.Path;
+    string expressionForGuid = @"^/api/users/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$";
 
-        if (request.HasJsonContentType())
-        {
-            var jsonoptions = new JsonSerializerOptions();
-            jsonoptions.Converters.Add(new CarConverter());              
-            var car = await request.ReadFromJsonAsync<Car>(jsonoptions);
-            if (car != null)
-            {
-                message = $"Marka: {car.marka};  Model: {car.model}; Bodytype: {car.bodytype};  Enginetype: {car.enginetype};" +
-                $" EngineDisplacement: {car.engineDisplacement};  TransmissionType: {car.transmissionType};" +
-                $" AverageConsumption: {car.averageConsumption}; ";
-            }
-        }
-        await response.WriteAsJsonAsync(new { text = message });
+    if (path == "/api/cars" && request.Method == "GET")
+    {
+        await GetAllCar(response);
+    }
+    else if (path == "/api/cars" && request.Method == "POST")
+    {
+        await CreateCar(response, request);
+    }
+    else if (Regex.IsMatch(path, expressionForGuid) && request.Method == "DELETE")
+    {
+        string? id = path.Value?.Split("/")[3];
+        await DeleteCar(id, response);
     }
     else
     {
@@ -37,10 +36,51 @@ app.Run(async (context) =>
 
 app.Run();
 
+async Task GetAllCar(HttpResponse response)
+{   
+    await response.WriteAsJsonAsync(cars);
+}
+async Task DeleteCar(string? id, HttpResponse response)
+{
+    Car? car = cars.FirstOrDefault((u) => u.Id == id);
+    if (car != null)
+    {
+        cars.Remove(car);
+        await response.WriteAsJsonAsync(car);
+    }
+    else
+    {
+        response.StatusCode = 404;
+        await response.WriteAsJsonAsync(new { message = "Машина не найден" });
+    }
+}
 
+async Task CreateCar(HttpResponse response, HttpRequest request)
+{
+    try
+    {
+        var jsonoptions = new JsonSerializerOptions();
+        jsonoptions.Converters.Add(new CarConverter());
+        var car = await request.ReadFromJsonAsync<Car>(jsonoptions);
+        if (car != null)
+        {
+            cars.Add(new(Guid.NewGuid().ToString(), car.marka, car.model, car.bodytype, car.enginetype,
+                car.engineDisplacement, car.transmissionType, car.averageConsumption));
+            await response.WriteAsJsonAsync(car);
+        }
+        else
+        {
+            throw new Exception("Некорректные данные");
+        }
+    }
+    catch (Exception)
+    {
+        response.StatusCode = 400;
+        await response.WriteAsJsonAsync(new { message = "Некорректные данные" });
+    }
+}
 
-
-public record Car(string marka, string model, string bodytype, string enginetype, double engineDisplacement, string transmissionType, double averageConsumption);
+public record Car(string Id, string marka, string model, string bodytype, string enginetype, double engineDisplacement, string transmissionType, double averageConsumption);
 
 
 
@@ -48,6 +88,7 @@ public class CarConverter : JsonConverter<Car>
 {
     public override Car Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        var Id = Guid.NewGuid().ToString();
         var marka = "Undefined";
         var model = "Undefined";
         var bodytype = "Undefined";
@@ -55,17 +96,22 @@ public class CarConverter : JsonConverter<Car>
         var engineDisplacement = 0.0; ;
         var transmissionType = "Undefined";
         var averageConsumption = 0.0; ;
-        
+
 
         while (reader.Read())
         {
             if (reader.TokenType == JsonTokenType.PropertyName)
             {
                 var propertyName = reader.GetString();
-               
+
                 reader.Read();
                 switch (propertyName?.ToLower())
                 {
+                    case "Id":
+                        string? carid = reader.GetString();
+                        if (carid != null)
+                            Id = carid;
+                        break;
                     case "marka":
                         string? carmarka = reader.GetString();
                         if (carmarka != null)
@@ -118,13 +164,14 @@ public class CarConverter : JsonConverter<Car>
                 }
             }
         }
-        return new Car( marka,  model,  bodytype,  enginetype,  engineDisplacement,  transmissionType,  averageConsumption);
+        return new Car(Id, marka, model, bodytype, enginetype, engineDisplacement, transmissionType, averageConsumption);
 
     }
 
     public override void Write(Utf8JsonWriter writer, Car car, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
+        writer.WriteString("Id", car.Id);
         writer.WriteString("marka", car.marka);
         writer.WriteString("model", car.model);
         writer.WriteString("bodytype", car.bodytype);

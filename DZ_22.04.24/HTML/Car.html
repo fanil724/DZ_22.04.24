@@ -8,36 +8,163 @@
     <h2>Список машин</h2>
     <div id="message"></div>
     <div>
+        <input type="hidden" id="carId" />
         <p>Marka: <input name="marka" id="marka" /></p>
         <p>Model: <input name="model" id="model" /></p>
         <p>Body type: <input name="bodytype" id="bodytype" /></p>
         <p>Engine type: <input name="enginetype" id="enginetype" /></p>
         <p>Engine Displacement: <input name="engineDisplacement" id="engineDisplacement" /></p>
         <p>Transmission Type: <input name="transmissionType" id="transmissionType" /></p>
-        <p>Average Consumption: <input name="averageConsumption" id="averageConsumption" /></p>       
-        <button id="sendBtn">Send</button>
+        <p>Average Consumption: <input name="averageConsumption" id="averageConsumption" /></p>
+        <p>
+            <button id="saveBtn">Save</button>
+            <button id="resetBtn">Сбросить</button>
+        </p>
     </div>
+    <table style="padding:5px;border:2px">
+        <thead>
+            <tr>
+                <th>Marka</th>
+                <th>Model</th>
+                <th>Body type</th>
+                <th>Engine type</th>
+                <th>Engine Displacement</th>
+                <th>Transmission Type</th>
+                <th>Average Consumption</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 
     <script>
-        document.getElementById("sendBtn").addEventListener("click", send);
-        async function send() {
-             const response = await fetch("/postcar", {
-                 method: "POST",
-                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
-                 body: JSON.stringify({
-                     marka: document.getElementById("marka").value,
-                     model: document.getElementById("model").value,
-                     bodytype: document.getElementById("bodytype").value,
-                     enginetype: document.getElementById("enginetype").value,
-                     engineDisplacement: document.getElementById("engineDisplacement").value,
-                     transmissionType: document.getElementById("transmissionType").value,
-                     averageConsumption: document.getElementById("averageConsumption").value
-                 })
-             });
-                       
-            const mess = await response.json();            
-            document.getElementById("message").innerText = mess.text;
+        async function getCars() {
+            const response = await fetch("/api/cars", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const cars = await response.json();
+                const rows = document.querySelector("tbody");
+                cars.forEach(car => rows.append(row(car)));
+            }
         }
+
+        async function createCar(carmarka, carmodel, carbodytype, carenginetype, carengineDisplacement, cartransmissionType, caraverageConsumption) {
+
+            const response = await fetch("api/cars", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    marka: carmarka,
+                    model: carmodel,
+                    bodytype: carbodytype,
+                    enginetype: carenginetype,
+                    engineDisplacement: carengineDisplacement,
+                    transmissionType: cartransmissionType,
+                    averageConsumption: caraverageConsumption
+                })
+            });
+            if (response.ok === true) {
+                const car = await response.json();
+                document.querySelector("tbody").append(row(car));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function deleteCar(id) {
+            const response = await fetch(`/api/cars/${id}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const car = await response.json();
+                document.querySelector(`tr[data-rowid='${car.id}']`).remove();
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        function reset() {
+            document.getElementById("marka").value = "";
+            document.getElementById("model").value = "";
+            document.getElementById("bodytype").value = "";
+            document.getElementById("enginetype").value = "";
+            document.getElementById("engineDisplacement").value = "";
+            document.getElementById("transmissionType").value = "";
+            document.getElementById("averageConsumption").value = "";
+
+        }
+
+        function row(car) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", car.id);
+
+            const markaTd = document.createElement("td");
+            markaTd.append(car.marka);
+            tr.append(markaTd);
+
+            const modelTd = document.createElement("td");
+            modelTd.append(car.model);
+            tr.append(modelTd);
+
+            const bodytypeTd = document.createElement("td");
+            bodytypeTd.append(car.bodytype);
+            tr.append(bodytypeTd);
+
+            const enginetypeTd = document.createElement("td");
+            enginetypeTd.append(car.enginetype);
+            tr.append(enginetypeTd);
+
+            const engineDisplacementTd = document.createElement("td");
+            engineDisplacementTd.append(car.engineDisplacement);
+            tr.append(engineDisplacementTd);
+
+            const transmissionTypeTd = document.createElement("td");
+            transmissionTypeTd.append(car.transmissionType);
+            tr.append(transmissionTypeTd);
+
+            const averageConsumptionTd = document.createElement("td");
+            averageConsumptionTd.append(car.averageConsumption);
+            tr.append(averageConsumptionTd);
+
+            const linksTd = document.createElement("td");
+
+            const removeLink = document.createElement("button");
+            removeLink.append("Удалить");
+            removeLink.addEventListener("click", async () => await deleteCar(car.id));
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        document.getElementById("resetBtn").addEventListener("click", () => reset());
+
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+
+            //const id = document.getElementById("carId").value;
+            const marka = document.getElementById("marka").value;
+            const model = document.getElementById("model").value;
+            const bodytype = document.getElementById("bodytype").value;
+            const enginetype = document.getElementById("enginetype").value;
+            const engineDisplacement = document.getElementById("engineDisplacement").value;
+            const transmissionType = document.getElementById("transmissionType").value;
+            const averageConsumption = document.getElementById("averageConsumption").value;
+
+            await createCar(marka, model, bodytype, enginetype, engineDisplacement, transmissionType, averageConsumption);
+
+            reset();
+        });
+
+        getCars();
     </script>
 </body>
 </html>
