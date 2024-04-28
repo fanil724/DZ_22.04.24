@@ -1,0 +1,43 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Машины</title>
+</head>
+<body>
+    <h2>Список машин</h2>
+    <div id="message"></div>
+    <div>
+        <p>Marka: <input name="marka" id="marka" /></p>
+        <p>Model: <input name="model" id="model" /></p>
+        <p>Body type: <input name="bodytype" id="bodytype" /></p>
+        <p>Engine type: <input name="enginetype" id="enginetype" /></p>
+        <p>Engine Displacement: <input name="engineDisplacement" id="engineDisplacement" /></p>
+        <p>Transmission Type: <input name="transmissionType" id="transmissionType" /></p>
+        <p>Average Consumption: <input name="averageConsumption" id="averageConsumption" /></p>       
+        <button id="sendBtn">Send</button>
+    </div>
+
+    <script>
+        document.getElementById("sendBtn").addEventListener("click", send);
+        async function send() {
+             const response = await fetch("/postcar", {
+                 method: "POST",
+                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                 body: JSON.stringify({
+                     marka: document.getElementById("marka").value,
+                     model: document.getElementById("model").value,
+                     bodytype: document.getElementById("bodytype").value,
+                     enginetype: document.getElementById("enginetype").value,
+                     engineDisplacement: document.getElementById("engineDisplacement").value,
+                     transmissionType: document.getElementById("transmissionType").value,
+                     averageConsumption: document.getElementById("averageConsumption").value
+                 })
+             });
+                       
+            const mess = await response.json();            
+            document.getElementById("message").innerText = mess.text;
+        }
+    </script>
+</body>
+</html>
