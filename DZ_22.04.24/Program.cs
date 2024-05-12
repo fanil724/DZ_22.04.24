@@ -5,9 +5,12 @@ using System.Text.RegularExpressions;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-List<Car> cars = new List<Car>() {new Car(Guid.NewGuid().ToString(),"vaz","granta","sedan","benzin",2,"jac",7) };
+List<Car> cars = new List<Car>() {
+    new Car(Guid.NewGuid().ToString(), "vaz", "granta", "sedan", "benzin", 2, "jac", 7),
+new Car(Guid.NewGuid().ToString(), "bmw", "m5", "sedan", "benzin", 6.3, "akpp", 11)
+};
 
-app.Run(async (context) =>
+/*app.Run(async (context) =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
     var response = context.Response;
@@ -32,12 +35,40 @@ app.Run(async (context) =>
     {
         await context.Response.SendFileAsync("HTML/Car.html");
     }
-});
+});*/
 
+
+app.UseWhen(
+context => (context.Request.Path == "/api/cars" && context.Request.Method == "GET"),
+    appBuilder => appBuilder.Run(async (context) => await GetAllCar(context.Response)));
+
+app.UseWhen(
+context => (context.Request.Path == "/api/cars" && context.Request.Method == "POST"),
+    appBuilder => appBuilder.Run(async (context) => await CreateCar(context.Response, context.Request)));
+
+app.UseWhen(
+context => (Regex.IsMatch(context.Request.Path, @"^/api/cars/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$") && context.Request.Method == "DELETE"),
+    appBuilder =>
+    {
+        appBuilder.Run(async (context) =>
+        {           
+            string? id = context.Request.Path.Value?.Split("/")[3];
+            await DeleteCar(id, context.Response);
+        });     
+    }
+    );
+
+app.Run(
+       async (context) =>
+       {
+           context.Response.ContentType = "text/html; charset=utf-8";
+           await context.Response.SendFileAsync("HTML/Car.html");
+       }
+   );
 app.Run();
 
 async Task GetAllCar(HttpResponse response)
-{   
+{
     await response.WriteAsJsonAsync(cars);
 }
 
@@ -84,8 +115,6 @@ async Task CreateCar(HttpResponse response, HttpRequest request)
 }
 
 public record Car(string Id, string marka, string model, string bodytype, string enginetype, double engineDisplacement, string transmissionType, double averageConsumption);
-
-
 
 public class CarConverter : JsonConverter<Car>
 {
